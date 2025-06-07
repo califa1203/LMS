@@ -1,0 +1,274 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Users table - Core user management
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      UserRole
+  avatar    String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relationships
+  taughtCourses     Course[]              @relation("CourseInstructor")
+  enrollments       Enrollment[]
+  quizAttempts      QuizAttempt[]
+  sentMessages      Message[]             @relation("MessageSender")
+  receivedMessages  Message[]             @relation("MessageRecipient")
+  parentRelations   ParentStudentRelation[] @relation("ParentUser")
+  studentRelations  ParentStudentRelation[] @relation("StudentUser")
+  notifications     Notification[]
+
+  @@map("users")
+}
+
+// User roles enum
+enum UserRole {
+  ADMIN
+  TEACHER
+  STUDENT
+  PARENT
+
+  @@map("user_role")
+}
+
+// Courses table
+model Course {
+  id          String      @id @default(cuid())
+  title       String
+  description String?
+  thumbnail   String?
+  level       CourseLevel @default(BEGINNER)
+  duration    Int?        // Duration in hours
+  price       Float?      @default(0)
+  isPublished Boolean     @default(false) @map("is_published")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  // Relationships
+  instructorId String @map("instructor_id")
+  instructor   User   @relation("CourseInstructor", fields: [instructorId], references: [id], onDelete: Cascade)
+
+  lessons     Lesson[]
+  quizzes     Quiz[]
+  enrollments Enrollment[]
+
+  @@map("courses")
+}
+
+// Course levels enum
+enum CourseLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+
+  @@map("course_level")
+}
+
+// Lessons table
+model Lesson {
+  id          String   @id @default(cuid())
+  title       String
+  content     String?
+  videoUrl    String?  @map("video_url")
+  orderIndex  Int      @map("order_index")
+  duration    Int?     // Duration in minutes
+  isPublished Boolean  @default(false) @map("is_published")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relationships
+  courseId String @map("course_id")
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  quizzes Quiz[]
+
+  @@map("lessons")
+}
+
+// Quizzes table
+model Quiz {
+  id              String   @id @default(cuid())
+  title           String
+  description     String?
+  timeLimit       Int?     @map("time_limit") // Time limit in minutes
+  passingScore    Int      @default(70) @map("passing_score")
+  maxAttempts     Int      @default(3) @map("max_attempts")
+  isPublished     Boolean  @default(false) @map("is_published")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relationships
+  courseId String  @map("course_id")
+  course   Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessonId String? @map("lesson_id")
+  lesson   Lesson? @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+
+  questions    Question[]
+  quizAttempts QuizAttempt[]
+
+  @@map("quizzes")
+}
+
+// Questions table
+model Question {
+  id           String       @id @default(cuid())
+  questionText String       @map("question_text")
+  questionType QuestionType @map("question_type")
+  options      Json?        // JSON array for multiple choice options
+  correctAnswer String      @map("correct_answer")
+  points       Int          @default(1)
+  orderIndex   Int          @map("order_index")
+  explanation  String?      // Explanation for the correct answer
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  // Relationships
+  quizId String @map("quiz_id")
+  quiz   Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@map("questions")
+}
+
+// Question types enum
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  SHORT_ANSWER
+
+  @@map("question_type")
+}
+
+// Enrollments table
+model Enrollment {
+  id                 String    @id @default(cuid())
+  enrolledAt         DateTime  @default(now()) @map("enrolled_at")
+  completedAt        DateTime? @map("completed_at")
+  progressPercentage Int       @default(0) @map("progress_percentage")
+  lastAccessedAt     DateTime? @map("last_accessed_at")
+
+  // Relationships
+  studentId String @map("student_id")
+  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseId  String @map("course_id")
+  course    Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+  @@map("enrollments")
+}
+
+// Quiz attempts table
+model QuizAttempt {
+  id              String    @id @default(cuid())
+  score           Int
+  maxScore        Int       @map("max_score")
+  answers         Json      // JSON object storing answers
+  startedAt       DateTime  @default(now()) @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  timeTaken       Int?      @map("time_taken") // Time taken in minutes
+  attemptNumber   Int       @map("attempt_number")
+
+  // Relationships
+  studentId String @map("student_id")
+  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  quizId    String @map("quiz_id")
+  quiz      Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@map("quiz_attempts")
+}
+
+// Messages table
+model Message {
+  id        String    @id @default(cuid())
+  subject   String?
+  content   String
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  // Relationships
+  senderId    String @map("sender_id")
+  sender      User   @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipientId String @map("recipient_id")
+  recipient   User   @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+// Parent-Student relationships table
+model ParentStudentRelation {
+  id               String @id @default(cuid())
+  relationshipType String @default("parent") @map("relationship_type")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  // Relationships
+  parentId  String @map("parent_id")
+  parent    User   @relation("ParentUser", fields: [parentId], references: [id], onDelete: Cascade)
+  studentId String @map("student_id")
+  student   User   @relation("StudentUser", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, studentId])
+  @@map("parent_student_relations")
+}
+
+// Notifications table
+model Notification {
+  id        String           @id @default(cuid())
+  title     String
+  message   String
+  type      NotificationType
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  // Relationships
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// Notification types enum
+enum NotificationType {
+  QUIZ_GRADED
+  NEW_MESSAGE
+  COURSE_ENROLLED
+  ASSIGNMENT_DUE
+  GENERAL
+
+  @@map("notification_type")
+}
+
+// Blog posts table (for admin content management)
+model BlogPost {
+  id          String    @id @default(cuid())
+  title       String
+  content     String
+  excerpt     String?
+  thumbnail   String?
+  isPublished Boolean   @default(false) @map("is_published")
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("blog_posts")
+}
+
+// Site settings table (for admin configuration)
+model SiteSetting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+  type  String @default("string") // string, number, boolean, json
+
+  @@map("site_settings")
+}
