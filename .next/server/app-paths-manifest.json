@@ -1,0 +1,14 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/favicon.ico/route": "app/favicon.ico/route.js",
+  "/(dashboard)/admin/page": "app/(dashboard)/admin/page.js",
+  "/(dashboard)/parent/page": "app/(dashboard)/parent/page.js",
+  "/(dashboard)/student/page": "app/(dashboard)/student/page.js",
+  "/(dashboard)/teacher/page": "app/(dashboard)/teacher/page.js",
+  "/about/page": "app/about/page.js",
+  "/auth/login/page": "app/auth/login/page.js",
+  "/auth/register/page": "app/auth/register/page.js",
+  "/blog/page": "app/blog/page.js",
+  "/courses/page": "app/courses/page.js",
+  "/page": "app/page.js"
+}
